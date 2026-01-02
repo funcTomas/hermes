@@ -12,21 +12,22 @@ type Factory interface {
 
 func NewFactory(db *gorm.DB, redisCli *redis.Client, ueProducer *rocketmq.Producer) Factory {
 	return &myFactory{
-		Db:                db,
-		redisClient:       redisCli,
-		UserEventProducer: ueProducer,
+		Db:          db,
+		RedisClient: redisCli,
+		MqProducer:  ueProducer,
 	}
 }
 
 type myFactory struct {
-	Db                *gorm.DB
-	redisClient       *redis.Client
-	UserEventProducer *rocketmq.Producer
+	Db          *gorm.DB
+	RedisClient *redis.Client
+	MqProducer  *rocketmq.Producer
 }
 
 func (mf *myFactory) GetUserService() UserService {
 	return &userServiceImpl{
 		Db:          mf.Db,
-		RedisClient: mf.redisClient,
+		RedisClient: mf.RedisClient,
+		MqProducer:  mf.MqProducer,
 	}
 }

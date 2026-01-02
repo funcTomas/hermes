@@ -2,9 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
+	"github.com/apache/rocketmq-client-go/v2"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
+	"github.com/funcTomas/hermes/common"
 	"github.com/funcTomas/hermes/model"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -13,18 +18,13 @@ import (
 type UserService interface {
 	AddUser(context.Context, *model.User) error
 	UpdateEnterGroupTime(context.Context, *model.User) error
+	SendRmqAddUser(context.Context, string, string, int, int) error
 }
 
 type userServiceImpl struct {
 	Db          *gorm.DB
 	RedisClient *redis.Client
-}
-
-func NewUserService(db *gorm.DB, redisClient *redis.Client) UserService {
-	return &userServiceImpl{
-		Db:          db,
-		RedisClient: redisClient,
-	}
+	MqProducer  *rocketmq.Producer
 }
 
 func (usi *userServiceImpl) AddUser(ctx context.Context, user *model.User) error {
@@ -45,4 +45,33 @@ func (usi *userServiceImpl) UpdateEnterGroupTime(ctx context.Context, user *mode
 		user.UpdateAt = time.Now().Unix()
 	}
 	return user.UpdateEnterGroupTimeById(ctx, usi.Db)
+}
+
+func (usi *userServiceImpl) SendRmqAddUser(ctx context.Context, phone, uniqId string, channelId, putDate int) error {
+	eventMsg := common.UserEventMsg{
+		Event: common.NewUserEvent,
+		Data: common.UserEventMsgData{
+			Phone:     phone,
+			UniqId:    uniqId,
+			ChannelId: channelId,
+			PutDate:   putDate,
+		},
+	}
+	msgBytes, err := json.Marshal(eventMsg)
+	if err != nil {
+		log.Printf("Failed to marshal RocketMQ message for msg: %v, err: %v\n", eventMsg, err)
+		return err
+	}
+
+	msg := &primitive.Message{
+		Topic: common.UserEventTopic,
+		Body:  msgBytes,
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, common.SendTimeout)
+	defer cancel()
+
+	// 发送同步消息
+	_, err = (*usi.MqProducer).SendSync(ctx, msg)
+	return err
 }

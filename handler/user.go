@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/funcTomas/hermes/common"
 	"github.com/funcTomas/hermes/service"
+	"github.com/funcTomas/hermes/tool"
 )
 
 type UserHandler struct {
@@ -27,13 +29,18 @@ func (uh *UserHandler) UserAdd(w http.ResponseWriter, r *http.Request) {
 
 	phone := strings.TrimSpace(r.FormValue("phone"))
 	uniqId := strings.TrimSpace(r.FormValue("uniqId"))
-	channelId := strings.TrimSpace(r.FormValue("channelId"))
+	channelId, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("channelId")))
 
-	if phone == "" || uniqId == "" || channelId == "" {
+	if phone == "" || uniqId == "" || channelId == 0 {
 		http.Error(w, "Missing required parameters: phone, uniqId, channelId", http.StatusBadRequest)
 		return
 	}
-
+	putDate := tool.GetNowDate()
+	userService := uh.factory.GetUserService()
+	if err := userService.SendRmqAddUser(r.Context(), phone, uniqId, channelId, putDate); err != nil {
+		http.Error(w, "send rocketmq failed "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	data := struct{}{}
 	if err := json.NewEncoder(w).Encode(common.SuccessRet(data)); err != nil {

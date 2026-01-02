@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/apache/rocketmq-client-go/v2/rlog"
+	"github.com/funcTomas/hermes/common"
 	"github.com/funcTomas/hermes/common/config"
 	"github.com/funcTomas/hermes/handler"
 	"github.com/funcTomas/hermes/helper"
@@ -42,12 +43,17 @@ func main() {
 		log.Fatalf("Failed to start RocketMQ Producer: %v", err)
 	}
 
-	mqConsumer, err := mqClient.StartConsumer(ctx)
 	if err != nil {
 		log.Fatalf("Failed to start RocketMQ Consumer: %v", err)
 	}
 
 	factory := service.NewFactory(mysqlDb, redisInstance, &mqProducer)
+
+	mqHanlder := handler.NewConsumHandler(factory)
+	mqConsumer, err := mqClient.StartConsumer(ctx, map[string]common.ConsumeFunc{
+		common.CallResultTopic: mqHanlder.ConsumeAnswerStatus,
+		common.UserEventTopic:  mqHanlder.ConsumeUserEvent,
+	})
 
 	router := handler.SetupRouter(factory)
 	server := &http.Server{

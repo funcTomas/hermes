@@ -2,13 +2,12 @@ package helper
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
+	"github.com/funcTomas/hermes/common"
 	"github.com/funcTomas/hermes/common/config"
 )
 
@@ -36,7 +35,9 @@ func (rmq *RocketMQClient) StartProducer(ctx context.Context) (rocketmq.Producer
 	return p, nil
 }
 
-func (rmq *RocketMQClient) StartConsumer(ctx context.Context) (rocketmq.PushConsumer, error) {
+func (rmq *RocketMQClient) StartConsumer(ctx context.Context,
+	methods map[string]common.ConsumeFunc) (rocketmq.PushConsumer, error) {
+
 	c, err := rocketmq.NewPushConsumer(
 		consumer.WithNameServer([]string{rmq.cfg.NameSrvAddr}),
 		consumer.WithGroupName(rmq.cfg.Consumer.Group),
@@ -45,13 +46,7 @@ func (rmq *RocketMQClient) StartConsumer(ctx context.Context) (rocketmq.PushCons
 		return nil, err
 	}
 	for _, topic := range rmq.cfg.Consumer.Topics {
-		err = c.Subscribe(topic.Name, consumer.MessageSelector{},
-			func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-				for _, msg := range msgs {
-					fmt.Printf("subcribe callback: %v\n", msg)
-				}
-				return consumer.ConsumeSuccess, nil
-			})
+		err = c.Subscribe(topic.Name, consumer.MessageSelector{}, methods[topic.Name])
 		if err != nil {
 			return nil, err
 		}
