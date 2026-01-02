@@ -61,7 +61,6 @@ func (c *MysqlClient) Connect(ctx context.Context) (*gorm.DB, error) {
 }
 
 func (c *MysqlClient) Close(db *gorm.DB) error {
-	log.Println("Closing MySQL connection pool")
 	sqlDB, err := db.DB()
 	if err != nil {
 		return err

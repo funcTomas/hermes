@@ -27,7 +27,6 @@ func (c *RedisClient) Connect(ctx context.Context) (*redis.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("Connected to Redis")
 	return client, nil
 }
 
