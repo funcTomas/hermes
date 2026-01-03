@@ -9,10 +9,6 @@ const (
 )
 
 const (
-	Redis_UniqId2Date = "hermes_uniqId2date"
-)
-
-const (
 	NewUserEvent      = "NewUserEvent"
 	EnterGroupEvent   = "EnterGroupEvent"
 	AnswerStatusEvent = "AnswerStatusEvent"

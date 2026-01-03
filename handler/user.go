@@ -37,7 +37,7 @@ func (uh *UserHandler) UserAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	putDate := tool.GetNowDate()
 	userService := uh.factory.GetUserService()
-	if err := userService.SendRmqAddUser(r.Context(), phone, uniqId, channelId, putDate); err != nil {
+	if err := userService.SendMqAddUser(r.Context(), phone, uniqId, channelId, putDate); err != nil {
 		http.Error(w, "send rocketmq failed "+err.Error(), http.StatusInternalServerError)
 		return
 	}

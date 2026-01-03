@@ -18,7 +18,7 @@ import (
 type UserService interface {
 	AddUser(context.Context, *gorm.DB, *model.User) error
 	UpdateEnterGroupTime(context.Context, *model.User) error
-	SendRmqAddUser(context.Context, string, string, int, int) error
+	SendMqAddUser(context.Context, string, string, int, int) error
 }
 
 type userServiceImpl struct {
@@ -50,7 +50,7 @@ func (usi *userServiceImpl) UpdateEnterGroupTime(ctx context.Context, user *mode
 	return user.UpdateEnterGroupTimeById(ctx, usi.Db)
 }
 
-func (usi *userServiceImpl) SendRmqAddUser(ctx context.Context, phone, uniqId string, channelId, putDate int) error {
+func (usi *userServiceImpl) SendMqAddUser(ctx context.Context, phone, uniqId string, channelId, putDate int) error {
 	eventMsg := common.UserEventMsg{
 		Event: common.NewUserEvent,
 		Data: common.UserEventMsgData{

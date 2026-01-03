@@ -9,10 +9,15 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Mysql    MysqlConfig    `yaml:"mysql"`
-	Redis    RedisConfig    `yaml:"redis"`
-	RocketMQ RocketMQConfig `yaml:"rocketmq"`
+	Server   ServerConfig         `yaml:"server"`
+	Mysql    MysqlConfig          `yaml:"mysql"`
+	Redis    RedisConfig          `yaml:"redis"`
+	RocketMQ RocketMQConfig       `yaml:"rocketmq"`
+	API      map[string]APIConfig `yaml:"api"`
+}
+
+type APIConfig struct {
+	EndPoint string `yaml:"endPoint"`
 }
 
 type ServerConfig struct {

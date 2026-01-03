@@ -47,7 +47,17 @@ func main() {
 		log.Fatalf("Failed to start RocketMQ Consumer: %v", err)
 	}
 
-	factory := service.NewFactory(mysqlDb, redisInstance, &mqProducer)
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second,
+	}
+
+	factory := service.NewFactory(mysqlDb, redisInstance, &mqProducer, httpClient, cfg.API)
 
 	mqHanlder := handler.NewConsumHandler(factory)
 	mqConsumer, err := mqClient.StartConsumer(ctx, map[string]common.ConsumeFunc{
