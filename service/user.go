@@ -16,7 +16,7 @@ import (
 )
 
 type UserService interface {
-	AddUser(context.Context, *model.User) error
+	AddUser(context.Context, *gorm.DB, *model.User) error
 	UpdateEnterGroupTime(context.Context, *model.User) error
 	SendRmqAddUser(context.Context, string, string, int, int) error
 }
@@ -27,12 +27,15 @@ type userServiceImpl struct {
 	MqProducer  *rocketmq.Producer
 }
 
-func (usi *userServiceImpl) AddUser(ctx context.Context, user *model.User) error {
+func (usi *userServiceImpl) AddUser(ctx context.Context, tx *gorm.DB, user *model.User) error {
 	if user.ChannelId == 0 || user.PutDate == 0 || user.Phone == "" {
 		return errors.New("param invalid")
 	}
 	if user.CreatedAt == 0 {
 		user.CreatedAt = time.Now().Unix()
+	}
+	if tx != nil {
+		return user.AddUser(ctx, tx)
 	}
 	return user.AddUser(ctx, usi.Db)
 }

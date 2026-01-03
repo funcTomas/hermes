@@ -21,13 +21,13 @@ type User struct {
 }
 
 // TableName 表名
-func (u *User) TableName() string {
+func (u User) TableName() string {
 	shardIndex := u.PutDate / 100
 	return fmt.Sprintf("user%6d", shardIndex)
 }
 
 func (u *User) AddUser(ctx context.Context, db *gorm.DB) error {
-	ret := db.WithContext(ctx).Create(u)
+	ret := db.Table(u.TableName()).WithContext(ctx).Create(u)
 	return ret.Error
 }
 

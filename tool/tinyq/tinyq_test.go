@@ -2,7 +2,7 @@ package tinyq
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"testing"
 	"time"
@@ -44,15 +44,15 @@ func TestFetchMsg(t *testing.T) {
 		BatchSize: 5,
 		WorkerID:  "worker-" + generateID(), // 确保唯一
 		Handler: func(ctx context.Context, tasks []*Task) []error {
-			errors := make([]error, len(tasks))
+			errs := make([]error, len(tasks))
 			for i, task := range tasks {
 				log.Printf("Processing task: %s, payload: %s", task.Type, task.Payload)
 				if task.Type == "fail" {
-					errors[i] = fmt.Errorf("simulated failure")
+					errs[i] = errors.New("simulated failure")
 				}
 				time.Sleep(100 * time.Millisecond)
 			}
-			return errors
+			return errs
 		},
 	})
 	go worker.Start()
@@ -86,15 +86,15 @@ func TestFailMsg(t *testing.T) {
 		BatchSize: 5,
 		WorkerID:  "worker-" + generateID(), // 确保唯一
 		Handler: func(ctx context.Context, tasks []*Task) []error {
-			errors := make([]error, len(tasks))
+			errs := make([]error, len(tasks))
 			for i, task := range tasks {
 				log.Printf("Processing task: %s, payload: %s", task.Type, task.Payload)
 				if task.Type == "fail" {
-					errors[i] = fmt.Errorf("simulated failure")
+					errs[i] = errors.New("simulated failure")
 				}
 				time.Sleep(100 * time.Millisecond)
 			}
-			return errors
+			return errs
 		},
 	})
 	go worker.Start()
