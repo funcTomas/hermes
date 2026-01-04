@@ -14,11 +14,11 @@ import (
 )
 
 type ConsumeHandler struct {
-	Factory service.Factory
+	userService service.UserService
 }
 
-func NewConsumHandler(factory service.Factory) ConsumeHandler {
-	return ConsumeHandler{Factory: factory}
+func NewConsumHandler(userSrv service.UserService) *ConsumeHandler {
+	return &ConsumeHandler{userService: userSrv}
 }
 
 func (chd *ConsumeHandler) ConsumeUserEvent(ctx context.Context,
@@ -36,20 +36,38 @@ func (chd *ConsumeHandler) ConsumeUserEvent(ctx context.Context,
 			log.Printf("Consumer UserEvent decode err: %v\n", err)
 			continue
 		}
-		if ueMsg.Data.ChannelId == 0 || ueMsg.Data.Phone == "" || ueMsg.Data.PutDate == 0 ||
-			ueMsg.Data.UniqId == "" {
+		if ueMsg.Data.PutDate == 0 {
 			log.Printf("Consumer UserEvent invalid params err: %s\n", msg.MsgId)
 			continue
 		}
-		userServie := chd.Factory.GetUserService()
 		u := &model.User{
 			PutDate:   ueMsg.Data.PutDate,
 			ChannelId: ueMsg.Data.ChannelId,
 			Phone:     ueMsg.Data.Phone,
 			UniqId:    ueMsg.Data.UniqId,
 		}
-		if err := userServie.AddUser(ctx, nil, u); err != nil {
-			return consumer.ConsumeRetryLater, fmt.Errorf("Consumer UserEvent db error: %v", err)
+		switch ueMsg.Event {
+		case common.NewUserEvent:
+			if ueMsg.Data.ChannelId == 0 || ueMsg.Data.UniqId == "" || ueMsg.Data.Phone == "" {
+				log.Printf("Consumer UserEvent %s invalid params err: %s\n", ueMsg.Event, msg.MsgId)
+				continue
+			}
+
+			if err := chd.userService.AddUser(ctx, u); err != nil {
+				return consumer.ConsumeRetryLater, fmt.Errorf("Consumer UserEvent %s db error: %v", ueMsg.Event, err)
+			}
+		case common.EnterGroupEvent:
+			if ueMsg.Data.Id == 0 || ueMsg.Data.EnterGroup == 0 {
+				log.Printf("Consumer UserEvent %s invalid params err: %s\n", ueMsg.Event, msg.MsgId)
+				continue
+			}
+			u.Id = ueMsg.Data.Id
+			u.EnterGroup = ueMsg.Data.EnterGroup
+			if err := chd.userService.UpdateEnterGroupTime(ctx, u); err != nil {
+				return consumer.ConsumeRetryLater, fmt.Errorf("Consumer UserEvent %s db error: %v", ueMsg.Event, err)
+			}
+		default:
+			log.Printf("Consumer unsupported userEvent: %s\n", ueMsg.Event)
 		}
 	}
 	return consumer.ConsumeSuccess, nil

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,11 +14,11 @@ import (
 )
 
 type UserHandler struct {
-	factory service.Factory
+	service service.UserService
 }
 
-func NewUserHandler(factory service.Factory) UserHandler {
-	return UserHandler{factory: factory}
+func NewUserHandler(srv service.UserService) *UserHandler {
+	return &UserHandler{service: srv}
 }
 
 func (uh *UserHandler) UserAdd(w http.ResponseWriter, r *http.Request) {
@@ -36,8 +37,7 @@ func (uh *UserHandler) UserAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	putDate := tool.GetNowDate()
-	userService := uh.factory.GetUserService()
-	if err := userService.SendMqAddUser(r.Context(), phone, uniqId, channelId, putDate); err != nil {
+	if err := uh.service.SendMqAddUser(r.Context(), phone, uniqId, channelId, putDate); err != nil {
 		http.Error(w, "send rocketmq failed "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -55,10 +55,20 @@ func (uh *UserHandler) UserEnterGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uniqId := strings.TrimSpace(r.FormValue("uniqId"))
+	idStr := strings.TrimSpace(r.FormValue("id"))
+	putDateStr := strings.TrimSpace(r.FormValue("putDate"))
+	tsStr := strings.TrimSpace(r.FormValue("timestamp"))
+	id, _ := strconv.ParseInt(idStr, 10, 64)
+	putDate, _ := strconv.Atoi(putDateStr)
+	ts, _ := strconv.ParseInt(tsStr, 10, 64)
 
-	if uniqId == "" {
-		http.Error(w, "Missing required parameters: uniqId", http.StatusBadRequest)
+	if id == 0 || putDate == 0 || ts == 0 {
+		http.Error(w, fmt.Sprintf("Missing required parameters: id %s putDate %s timestamp %s",
+			idStr, putDateStr, tsStr), http.StatusBadRequest)
+		return
+	}
+	if err := uh.service.SendMqEnterGroup(r.Context(), id, putDate, ts); err != nil {
+		http.Error(w, "send rocketmq failed "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

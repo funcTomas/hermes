@@ -16,11 +16,12 @@ type UserEventMsg struct {
 }
 
 type UserEventMsgData struct {
-	Id        int64  `json:"id"`
-	PutDate   int    `json:"putDate"`
-	Phone     string `json:"phone"`
-	UniqId    string `json:"uniqId"`
-	ChannelId int    `json:"channelId"`
+	Id         int64  `json:"id"`
+	PutDate    int    `json:"putDate"`
+	Phone      string `json:"phone"`
+	UniqId     string `json:"uniqId"`
+	ChannelId  int    `json:"channelId"`
+	EnterGroup int64  `json:"enterGroup"`
 }
 
 type ConsumeFunc func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error)

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -9,7 +8,7 @@ import (
 )
 
 type User struct {
-	Id         uint64 `gorm:"column:id;primary_key;AUTO_INCREMENT"`
+	Id         int64  `gorm:"column:id;primary_key;AUTO_INCREMENT"`
 	PutDate    int    `gorm:"column:put_date"`
 	Phone      string `gorm:"column:phone"`
 	UniqId     string `gorm:"column:uniq_id"`
@@ -26,16 +25,28 @@ func (u User) TableName() string {
 	return fmt.Sprintf("user%6d", shardIndex)
 }
 
-func (u *User) AddUser(ctx context.Context, db *gorm.DB) error {
-	ret := db.Table(u.TableName()).WithContext(ctx).Create(u)
-	return ret.Error
+type UserRepo interface {
+	SaveUser(*gorm.DB, *User) error
+	UpdateEnterGroupTime(*gorm.DB, *User) error
 }
 
-func (u *User) UpdateEnterGroupTimeById(ctx context.Context, db *gorm.DB) error {
+type myUserRepo struct {
+	db *gorm.DB
+}
+
+func NewUserRepo(db *gorm.DB) UserRepo {
+	return &myUserRepo{db: db}
+}
+
+func (up *myUserRepo) SaveUser(db *gorm.DB, u *User) error {
+	return db.Table(u.TableName()).Create(u).Error
+}
+
+func (up *myUserRepo) UpdateEnterGroupTime(db *gorm.DB, u *User) error {
 	updates := map[string]any{
 		"enter_group": u.EnterGroup,
 		"update_at":   time.Now().Unix(),
 	}
-	ret := db.WithContext(ctx).Model(u).Where("id = ?", u.Id).Updates(updates)
+	ret := db.Table(u.TableName()).Model(u).Where("id = ?", u.Id).Updates(updates)
 	return ret.Error
 }

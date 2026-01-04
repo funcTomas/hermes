@@ -16,41 +16,60 @@ import (
 )
 
 type UserService interface {
-	AddUser(context.Context, *gorm.DB, *model.User) error
+	AddUser(context.Context, *model.User) error
 	UpdateEnterGroupTime(context.Context, *model.User) error
 	SendMqAddUser(context.Context, string, string, int, int) error
+	SendMqEnterGroup(context.Context, int64, int, int64) error
+}
+
+func NewUserService(userRepo model.UserRepo, db *gorm.DB,
+	redisClient *redis.Client, mqProducer *rocketmq.Producer) UserService {
+	return &userServiceImpl{
+		db:          db,
+		redisClient: redisClient,
+		mqProducer:  mqProducer,
+		userRepo:    userRepo,
+	}
 }
 
 type userServiceImpl struct {
-	Db          *gorm.DB
-	RedisClient *redis.Client
-	MqProducer  *rocketmq.Producer
+	db          *gorm.DB
+	redisClient *redis.Client
+	mqProducer  *rocketmq.Producer
+	userRepo    model.UserRepo
 }
 
-func (usi *userServiceImpl) AddUser(ctx context.Context, tx *gorm.DB, user *model.User) error {
+func (srv *userServiceImpl) AddUser(ctx context.Context, user *model.User) error {
 	if user.ChannelId == 0 || user.PutDate == 0 || user.Phone == "" {
 		return errors.New("param invalid")
 	}
 	if user.CreatedAt == 0 {
 		user.CreatedAt = time.Now().Unix()
 	}
-	if tx != nil {
-		return user.AddUser(ctx, tx)
-	}
-	return user.AddUser(ctx, usi.Db)
+	return srv.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := srv.userRepo.SaveUser(tx, user); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-func (usi *userServiceImpl) UpdateEnterGroupTime(ctx context.Context, user *model.User) error {
-	if user.ChannelId == 0 || user.PutDate == 0 || user.Phone == "" {
+func (srv *userServiceImpl) UpdateEnterGroupTime(ctx context.Context, user *model.User) error {
+	if user.Id == 0 || user.PutDate == 0 || user.EnterGroup == 0 {
 		return errors.New("param invalid")
 	}
 	if user.UpdateAt == 0 {
 		user.UpdateAt = time.Now().Unix()
 	}
-	return user.UpdateEnterGroupTimeById(ctx, usi.Db)
+	return srv.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := srv.userRepo.UpdateEnterGroupTime(tx, user); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-func (usi *userServiceImpl) SendMqAddUser(ctx context.Context, phone, uniqId string, channelId, putDate int) error {
+func (srv *userServiceImpl) SendMqAddUser(ctx context.Context, phone, uniqId string, channelId, putDate int) error {
 	eventMsg := common.UserEventMsg{
 		Event: common.NewUserEvent,
 		Data: common.UserEventMsgData{
@@ -75,6 +94,34 @@ func (usi *userServiceImpl) SendMqAddUser(ctx context.Context, phone, uniqId str
 	defer cancel()
 
 	// 发送同步消息
-	_, err = (*usi.MqProducer).SendSync(ctx, msg)
+	_, err = (*srv.mqProducer).SendSync(ctx, msg)
+	return err
+}
+
+func (srv *userServiceImpl) SendMqEnterGroup(ctx context.Context, id int64, putDate int, ts int64) error {
+	eventMsg := common.UserEventMsg{
+		Event: common.EnterGroupEvent,
+		Data: common.UserEventMsgData{
+			Id:         id,
+			PutDate:    putDate,
+			EnterGroup: ts,
+		},
+	}
+	msgBytes, err := json.Marshal(eventMsg)
+	if err != nil {
+		log.Printf("Failed to marshal RocketMQ message for msg: %v, err: %v\n", eventMsg, err)
+		return err
+	}
+
+	msg := &primitive.Message{
+		Topic: common.UserEventTopic,
+		Body:  msgBytes,
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, common.SendTimeout)
+	defer cancel()
+
+	// 发送同步消息
+	_, err = (*srv.mqProducer).SendSync(ctx, msg)
 	return err
 }

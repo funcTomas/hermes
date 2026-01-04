@@ -15,6 +15,7 @@ import (
 	"github.com/funcTomas/hermes/common/config"
 	"github.com/funcTomas/hermes/handler"
 	"github.com/funcTomas/hermes/helper"
+	"github.com/funcTomas/hermes/model"
 	"github.com/funcTomas/hermes/service"
 )
 
@@ -47,25 +48,28 @@ func main() {
 		log.Fatalf("Failed to start RocketMQ Consumer: %v", err)
 	}
 
-	transport := &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
-	}
-	httpClient := &http.Client{
-		Transport: transport,
-		Timeout:   10 * time.Second,
-	}
+	userRepo := model.NewUserRepo(mysqlDb)
+	userService := service.NewUserService(userRepo, mysqlDb, redisInstance, &mqProducer)
+	userHandler := handler.NewUserHandler(userService)
 
-	factory := service.NewFactory(mysqlDb, redisInstance, &mqProducer, httpClient, cfg.API)
-
-	mqHanlder := handler.NewConsumHandler(factory)
+	/*
+		transport := &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		}
+		httpClient := &http.Client{
+			Transport: transport,
+			Timeout:   10 * time.Second,
+		}
+	*/
+	mqHandler := handler.NewConsumHandler(userService)
 	mqConsumer, err := mqClient.StartConsumer(ctx, map[string]common.ConsumeFunc{
-		common.CallResultTopic: mqHanlder.ConsumeAnswerStatus,
-		common.UserEventTopic:  mqHanlder.ConsumeUserEvent,
+		common.CallResultTopic: mqHandler.ConsumeAnswerStatus,
+		common.UserEventTopic:  mqHandler.ConsumeUserEvent,
 	})
 
-	router := handler.SetupRouter(factory)
+	router := handler.SetupRouter(userHandler)
 	server := &http.Server{
 		Addr:    ":" + strconv.Itoa(cfg.Server.Port),
 		Handler: router,
