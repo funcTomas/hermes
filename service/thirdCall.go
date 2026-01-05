@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/funcTomas/hermes/common/config"
 	"github.com/funcTomas/hermes/model"
 )
 
@@ -16,6 +18,25 @@ type ThirdCall interface {
 type thirdCallImpl struct {
 	HttpClient *http.Client
 	EndPoint   string
+}
+
+func NewThirdCall(cfg config.APIConfig) ThirdCall {
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	if cfg.Timeout < 150 {
+		cfg.Timeout = 150
+	}
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   time.Duration(cfg.Timeout * int(time.Millisecond)),
+	}
+	return &thirdCallImpl{
+		HttpClient: client,
+		EndPoint:   cfg.EndPoint,
+	}
 }
 
 func (tc *thirdCallImpl) CallOut(ctx context.Context) (resp model.ThirdCallResponse, err error) {

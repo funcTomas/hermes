@@ -9,15 +9,11 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig         `yaml:"server"`
-	Mysql    MysqlConfig          `yaml:"mysql"`
-	Redis    RedisConfig          `yaml:"redis"`
-	RocketMQ RocketMQConfig       `yaml:"rocketmq"`
-	API      map[string]APIConfig `yaml:"api"`
-}
-
-type APIConfig struct {
-	EndPoint string `yaml:"endPoint"`
+	Server   ServerConfig   `yaml:"server"`
+	Mysql    MysqlConfig    `yaml:"mysql"`
+	Redis    RedisConfig    `yaml:"redis"`
+	RocketMQ RocketMQConfig `yaml:"rocketmq"`
+	Api      API            `yaml:"api"`
 }
 
 type ServerConfig struct {
@@ -49,17 +45,20 @@ type RocketMQConfig struct {
 
 type ProducerConfig struct {
 	Group string `yaml:"group"`
-	Topic string `yaml:"topic"`
 }
 
 type ConsumerConfig struct {
-	Group  string        `yaml:"group"`
-	Topics []TopicConfig `yaml:"topics"`
+	Group string `yaml:"group"`
 }
 
-type TopicConfig struct {
-	Name string `yaml:"name"`
-	// Selector MessageSelector `yaml:"selector"` // 如果需要，可以加上
+type API struct {
+	ThirdCall APIConfig `yaml:"thirdCall"`
+	Wxd       APIConfig `yaml:"wxd"`
+}
+
+type APIConfig struct {
+	EndPoint string `yaml:"endPoint"`
+	Timeout  int    `yaml:"timeout"`
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -14,11 +14,15 @@ import (
 )
 
 type ConsumeHandler struct {
-	userService service.UserService
+	userService  service.UserService
+	thirdCallSrv service.ThirdCall
 }
 
-func NewConsumHandler(userSrv service.UserService) *ConsumeHandler {
-	return &ConsumeHandler{userService: userSrv}
+func NewConsumHandler(userSrv service.UserService, tcSrv service.ThirdCall) *ConsumeHandler {
+	return &ConsumeHandler{
+		userService:  userSrv,
+		thirdCallSrv: tcSrv,
+	}
 }
 
 func (chd *ConsumeHandler) ConsumeUserEvent(ctx context.Context,

@@ -24,7 +24,10 @@ type UserEventMsgData struct {
 	EnterGroup int64  `json:"enterGroup"`
 }
 
-type ConsumeFunc func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error)
+type ConsumeTopicFunc struct {
+	Topic string
+	Func  func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error)
+}
 
 type Token struct {
 	Id      int64

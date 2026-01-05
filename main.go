@@ -52,22 +52,13 @@ func main() {
 	userService := service.NewUserService(userRepo, mysqlDb, redisInstance, &mqProducer)
 	userHandler := handler.NewUserHandler(userService)
 
-	/*
-		transport := &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
-		}
-		httpClient := &http.Client{
-			Transport: transport,
-			Timeout:   10 * time.Second,
-		}
-	*/
-	mqHandler := handler.NewConsumHandler(userService)
-	mqConsumer, err := mqClient.StartConsumer(ctx, map[string]common.ConsumeFunc{
-		common.CallResultTopic: mqHandler.ConsumeAnswerStatus,
-		common.UserEventTopic:  mqHandler.ConsumeUserEvent,
-	})
+	thirdCallService := service.NewThirdCall(cfg.Api.ThirdCall)
+	mqHandler := handler.NewConsumHandler(userService, thirdCallService)
+	funcList := []common.ConsumeTopicFunc{
+		{Topic: common.CallResultTopic, Func: mqHandler.ConsumeAnswerStatus},
+		{Topic: common.UserEventTopic, Func: mqHandler.ConsumeUserEvent},
+	}
+	mqConsumer, err := mqClient.StartConsumer(ctx, funcList)
 
 	router := handler.SetupRouter(userHandler)
 	server := &http.Server{

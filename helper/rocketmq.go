@@ -30,13 +30,12 @@ func (rmq *RocketMQClient) StartProducer(ctx context.Context) (rocketmq.Producer
 	if err = p.Start(); err != nil {
 		return nil, err
 	}
-	log.Printf("RocketMQ Producer started, topic: %s, Namesrv: %s, Group: %s\n",
-		rmq.cfg.Producer.Topic, rmq.cfg.NameSrvAddr, rmq.cfg.Producer.Group)
+	log.Printf("RocketMQ Producer started, Namesrv: %s, Group: %s\n", rmq.cfg.NameSrvAddr, rmq.cfg.Producer.Group)
 	return p, nil
 }
 
 func (rmq *RocketMQClient) StartConsumer(ctx context.Context,
-	methods map[string]common.ConsumeFunc) (rocketmq.PushConsumer, error) {
+	funcList []common.ConsumeTopicFunc) (rocketmq.PushConsumer, error) {
 
 	c, err := rocketmq.NewPushConsumer(
 		consumer.WithNameServer([]string{rmq.cfg.NameSrvAddr}),
@@ -45,8 +44,8 @@ func (rmq *RocketMQClient) StartConsumer(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	for _, topic := range rmq.cfg.Consumer.Topics {
-		err = c.Subscribe(topic.Name, consumer.MessageSelector{}, methods[topic.Name])
+	for _, f := range funcList {
+		err = c.Subscribe(f.Topic, consumer.MessageSelector{}, f.Func)
 		if err != nil {
 			return nil, err
 		}
