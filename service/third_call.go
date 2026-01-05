@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 )
 
 type ThirdCall interface {
-	CallOut(context.Context) (model.ThirdCallResponse, error)
+	CallOut(context.Context, model.ThirdCallRequest) (model.ThirdCallResponse, error)
 }
 type thirdCallImpl struct {
 	HttpClient *http.Client
@@ -39,14 +40,23 @@ func NewThirdCall(cfg config.APIConfig) ThirdCall {
 	}
 }
 
-func (tc *thirdCallImpl) CallOut(ctx context.Context) (resp model.ThirdCallResponse, err error) {
+func (tc *thirdCallImpl) CallOut(ctx context.Context, req model.ThirdCallRequest) (resp model.ThirdCallResponse, err error) {
+	if req.Phone == "" || req.Strategy == 0 || req.Ext == "" {
+		err = fmt.Errorf("thirdCall callout invalid params: %v", req)
+		return
+	}
 	uri := "/callout"
-	req, err := http.NewRequestWithContext(ctx, "GET", tc.EndPoint+uri, nil)
+	jsonStr, err := json.Marshal(req)
+	if err != nil {
+		return
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", tc.EndPoint+uri, bytes.NewBuffer(jsonStr))
+	httpReq.Header.Set("Content-Type", "application/json")
 	if err != nil {
 		err = fmt.Errorf("error creating request: %w", err)
 		return
 	}
-	httpResp, err := tc.HttpClient.Do(req)
+	httpResp, err := tc.HttpClient.Do(httpReq)
 	if err != nil {
 		err = fmt.Errorf("error making request: %w", err)
 		return
